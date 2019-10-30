@@ -149,23 +149,32 @@ func main() {
 
 	lines := strings.Split(string(file), "\r")
 
-	var valM, valF, codInterval int
+	var valM, valF, codInterval, primaCifra int
 	var totalPopulatie, totalM, totalF int
 	var anN, lunaN, ziN, cnpCurent, dataNasterii string
 	var seed rand.Source
 	var random *rand.Rand
+	total := 0
 	for _, line := range lines {
 		vals := strings.Split(strings.TrimPrefix(line, "\n"), ",")
 
-		if codJudet, err := judMap[vals[0]]; err {
+		if codJudet, err := judMap[vals[0]]; err && len(listaCNP) <= 1000000 {
 			valM, _ = strconv.Atoi(vals[1])
 			valF, _ = strconv.Atoi(vals[2])
 			totalM = 1000000 * valM / totalPopulatie
 			totalF = 1000000 * valF / totalPopulatie
 
-			for i := 1; i <= totalM; i++ {
+			total += totalM + totalF
+
+			for i := 1; i <= totalM+totalF; i++ {
 				anN, lunaN, ziN = randomTimestamp()
 				dataNasterii = fmt.Sprintf("%s%s%s", anN[2:4], lunaN, ziN)
+
+				if i <= totalM {
+					primaCifra = getPrimaCifraM(anN)
+				} else {
+					primaCifra = getPrimaCifraF(anN)
+				}
 
 				seed = rand.NewSource(time.Now().UnixNano())
 				random = rand.New(seed)
@@ -177,43 +186,21 @@ func main() {
 					codInterval = random.Intn(999-1) + 1
 				}
 
-				cnpCurent = fmt.Sprintf("%d%s%s%s", getPrimaCifraM(anN), dataNasterii, codJudet, fmt.Sprintf("%03d", codInterval))
+				cnpCurent = fmt.Sprintf("%d%s%s%s", primaCifra, dataNasterii, codJudet, fmt.Sprintf("%03d", codInterval))
 
 				cnpCurent = fmt.Sprintf("%s%d", cnpCurent, getCifraControl(cnpCurent))
 
 				listaCNP = append(listaCNP, cnpCurent)
 				_, errFile = dateFile.WriteString(cnpCurent + "\n")
-			}
 
-			for i := 1; i <= totalF; i++ {
-				anN, lunaN, ziN = randomTimestamp()
-				dataNasterii = fmt.Sprintf("%s%s%s", anN[2:4], lunaN, ziN)
-
-				seed = rand.NewSource(time.Now().UnixNano())
-				random = rand.New(seed)
-				codInterval = random.Intn(999-1) + 1
-
-				for !validareIntervalCNP(dataNasterii, fmt.Sprintf("%03d", codInterval)) {
-					seed = rand.NewSource(time.Now().UnixNano())
-					random = rand.New(seed)
-					codInterval = random.Intn(999-1) + 1
+				if len(listaCNP) == 1000000 {
+					break
 				}
-
-				cnpCurent = fmt.Sprintf("%d%s%s%s", getPrimaCifraF(anN), dataNasterii, codJudet, fmt.Sprintf("%03d", codInterval))
-
-				cnpCurent = fmt.Sprintf("%s%d", cnpCurent, getCifraControl(cnpCurent))
-
-				listaCNP = append(listaCNP, cnpCurent)
-				_, errFile = dateFile.WriteString(cnpCurent + "\n")
 			}
 		} else {
 			totalPopulatie, _ = strconv.Atoi(vals[3])
 		}
 
 		fmt.Println(vals[0])
-
-		if len(listaCNP) == 1000000 {
-			break
-		}
 	}
 }
