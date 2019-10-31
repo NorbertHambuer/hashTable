@@ -1,9 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +65,7 @@ var judMap = map[string]string{
 }
 
 var listaCNP []string
+var result map[string]interface{}
 
 func randomTimestamp() (string, string, string) {
 	randomTime := rand.Int63n(time.Now().Unix()-94608000) + 94608000
@@ -134,7 +138,32 @@ func getCifraControl(cnp string) int {
 	return result
 }
 
+func getNume(gender string) string {
+	res, errReq := http.Get("https://api.namefake.com/romanian-romania/" + gender)
+
+	// Unmarshal or Decode the JSON to the interface.
+	body, errRead := ioutil.ReadAll(res.Body)
+	errUnmarshal := json.Unmarshal(body, &result)
+
+	if errReq != nil || errUnmarshal != nil || errRead != nil {
+		fmt.Println(errReq)
+		fmt.Println(errRead)
+		fmt.Println(errUnmarshal)
+	}
+
+	numePers := result["name"].(string)
+	words := strings.Split(numePers, " ")
+
+	if len(words) > 2 {
+		numePers = fmt.Sprintf("%s %s", words[1], words[2])
+	}
+
+	return numePers
+}
+
 func main() {
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
 	file, err := ioutil.ReadFile("dispersie_populatie.csv")
 
 	if err != nil {
@@ -147,11 +176,17 @@ func main() {
 		return
 	}
 
+	persFile, errFile := os.Create("listaPersoane.txt")
+	if errFile != nil {
+		fmt.Println(errFile)
+		return
+	}
+
 	lines := strings.Split(string(file), "\r")
 
 	var valM, valF, codInterval, primaCifra int
 	var totalPopulatie, totalM, totalF int
-	var anN, lunaN, ziN, cnpCurent, dataNasterii string
+	var anN, lunaN, ziN, cnpCurent, dataNasterii, numePers string
 	var seed rand.Source
 	var random *rand.Rand
 	total := 0
@@ -172,8 +207,10 @@ func main() {
 
 				if i <= totalM {
 					primaCifra = getPrimaCifraM(anN)
+					numePers = getNume("male")
 				} else {
 					primaCifra = getPrimaCifraF(anN)
+					numePers = getNume("female")
 				}
 
 				seed = rand.NewSource(time.Now().UnixNano())
@@ -192,6 +229,7 @@ func main() {
 
 				listaCNP = append(listaCNP, cnpCurent)
 				_, errFile = dateFile.WriteString(cnpCurent + "\n")
+				_, errFile = persFile.WriteString(fmt.Sprintf("%s, %s \n", numePers, cnpCurent))
 
 				if len(listaCNP) == 1000000 {
 					break
