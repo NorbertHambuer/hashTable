@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
@@ -75,12 +76,11 @@ var listaCNP []string
 var primeNumber = 700001
 var listaPersoane []Persoana
 
-type Persoana struct{
+type Persoana struct {
 	cnp, nume string
 }
 
 type hashFunction func(string) int
-
 
 func randomTimestamp() (string, string, string) {
 	randomTime := rand.Int63n(time.Now().Unix()-94608000) + 94608000
@@ -293,28 +293,28 @@ func seqHash(cnp string) int {
 	return val
 }
 
-func adaugareCNP(table map[int][]Persoana, hashFunc hashFunction, pers Persoana){
+func adaugareCNP(table map[int][]Persoana, hashFunc hashFunction, pers Persoana) {
 	index := hashFunc(pers.cnp)
 
-	if lista, err := table[index]; err{
+	if lista, err := table[index]; err {
 		lista = append(lista, pers)
 		table[index] = lista
-	}else{
-		table[index] = make([]Persoana,1,1000)
+	} else {
+		table[index] = make([]Persoana, 1, 1000)
 		table[index][0] = pers
 	}
 }
 
-func cautarePersoanaCNP(table map[int][]Persoana, hashFunc hashFunction, cnp string) Persoana{
+func cautarePersoanaCNP(table map[int][]Persoana, hashFunc hashFunction, cnp string) Persoana {
 	index := hashFunc(cnp)
 
-	if lista, err := table[index]; err{
-		if len(lista) == 1{
+	if lista, err := table[index]; err {
+		if len(lista) == 1 {
 			return lista[0]
 		}
 
-		for _, pers := range lista{
-			if pers.cnp == cnp{
+		for _, pers := range lista {
+			if pers.cnp == cnp {
 				return pers
 			}
 		}
@@ -325,21 +325,21 @@ func cautarePersoanaCNP(table map[int][]Persoana, hashFunc hashFunction, cnp str
 	return Persoana{}
 }
 
-func cautareCNP(table map[int][]Persoana, hashFunc hashFunction, cnp string) int{
+func cautareCNP(table map[int][]Persoana, hashFunc hashFunction, cnp string) int {
 	index := hashFunc(cnp)
 	iterarii := 4
 
-	if lista, err := table[index]; err{
+	if lista, err := table[index]; err {
 		iterarii++
-		if len(lista) == 1{
+		if len(lista) == 1 {
 			iterarii++
 			return iterarii
 		}
 
-		iterarii+=2
-		for _, pers := range lista{
+		iterarii += 2
+		for _, pers := range lista {
 			iterarii++
-			if pers.cnp == cnp{
+			if pers.cnp == cnp {
 				iterarii++
 				return iterarii
 			}
@@ -353,7 +353,7 @@ func cautareCNP(table map[int][]Persoana, hashFunc hashFunction, cnp string) int
 	return iterarii
 }
 
-func incarcareListaCNP()  {
+func incarcareListaCNP() {
 	f, _ := os.Open("listaPersoane.txt")
 
 	r := csv.NewReader(f)
@@ -381,7 +381,7 @@ func incarcareListaCNP()  {
 	}
 }
 
-func cautereCNPRandom(){
+func cautereCNPRandom() {
 	var seed rand.Source
 	var random *rand.Rand
 	var in int
@@ -411,15 +411,15 @@ func cautereCNPRandom(){
 		in = random.Intn(1000000-1) + 1
 
 		pers := listaPersoane[in]
+		fmt.Println(pers)
 
-
-		it = cautareCNP(sqrtHashTable,sqrtHash, pers.cnp)
+		it = cautareCNP(sqrtHashTable, sqrtHash, pers.cnp)
 		_, err = sqrtFile.WriteString(fmt.Sprintf("%d \n", it))
 
-		it = cautareCNP(primeHashTable,primeHash, pers.cnp)
-		_, err = primeFile.WriteString(fmt.Sprintf("%d \n",  it))
+		it = cautareCNP(primeHashTable, primeHash, pers.cnp)
+		_, err = primeFile.WriteString(fmt.Sprintf("%d \n", it))
 
-		it = cautareCNP(seqHashTable,seqHash, pers.cnp)
+		it = cautareCNP(seqHashTable, seqHash, pers.cnp)
 		_, err = seqFile.WriteString(fmt.Sprintf("%d \n", it))
 
 		time.Sleep(10)
@@ -428,6 +428,11 @@ func cautereCNPRandom(){
 
 func main() {
 	//generareCNP()
+	fmt.Println("Incarcare CNP-uri")
 	incarcareListaCNP()
 	cautereCNPRandom()
+
+	reader := bufio.NewReader(os.Stdin)
+	text, _ := reader.ReadString('\n')
+	fmt.Println(text)
 }
